@@ -110,7 +110,7 @@
     <h2>📋 目前已借出設備清單</h2>
 
     <div class="btn-group">
-        <a id="btn-back" href="javascript:void(0)" onclick="goBack()" class="action-btn btn-back">⬅ 回到掃描頁面</a>
+        <a href="index.html" class="action-btn btn-back">⬅ 回到首頁</a>
         <button class="action-btn btn-refresh" onclick="fetchList()">🔄 重新整理</button>
     </div>
 
@@ -126,8 +126,8 @@
             <thead>
                 <tr>
                     <th>編號</th>
-                    <th>廠牌</th>
                     <th>設備名稱</th>
+                    <th>廠牌</th>
                     <th>借用人</th>
                     <th>狀態</th>
                     <th>借出時間</th>
@@ -138,30 +138,10 @@
     </div>
 
     <script>
-        // ★★★ 請替換成你的 GAS Web App URL ★★★
-        const API_URL = "https://script.google.com/macros/s/AKfycbxiu0KVSF2csl01TxvZHrIPUBEA-m5fw1ds85nxJsHphPo5KpuxqqrJwGBvqWfmOW_6/exec";
+        // ★★★ 請確認是您的 GAS Web App URL ★★★
+        const API_URL = "https://script.google.com/macros/s/AKfycbzua7Z8qig-C3UqwUNG5axZstpfMSvDNULFqm7P37lwlWD3Xwy8MRwgDsHvgGwpeN2y/exec";
 
         let currentBorrowedItems = [];
-
-        window.addEventListener('DOMContentLoaded', () => {
-            const savedUser = localStorage.getItem("EQUIP_USER");
-            const backBtn = document.getElementById('btn-back');
-            if (savedUser) {
-                backBtn.innerText = "⬅ 回到掃描頁面";
-            } else {
-                backBtn.innerText = "⬅ 回到登入首頁";
-            }
-            fetchList();
-        });
-
-        function goBack() {
-            const savedUser = localStorage.getItem("EQUIP_USER");
-            if (savedUser) {
-                window.location.href = "scan.html";
-            } else {
-                window.location.href = "index.html";
-            }
-        }
 
         function renderTable(items) {
             const tbody = document.getElementById('list-body');
@@ -183,15 +163,19 @@
             items.forEach(item => {
                 const tr = document.createElement('tr');
 
+                // A: equipment_id
                 const tdId = document.createElement('td');
                 tdId.textContent = item.id || '-';
 
-                const tdBrand = document.createElement('td');
-                tdBrand.textContent = item.brand || '-';
-
+                // D: name
                 const tdName = document.createElement('td');
                 tdName.textContent = item.name || '-';
 
+                // E: brand
+                const tdBrand = document.createElement('td');
+                tdBrand.textContent = item.brand || '-';
+
+                // F: borrower_id + G: borrower_name
                 const tdUser = document.createElement('td');
                 if (item.borrowerName && item.borrowerId) {
                     tdUser.textContent = `${item.borrowerName} (${item.borrowerId})`;
@@ -199,16 +183,18 @@
                     tdUser.textContent = item.borrowerId || '-';
                 }
 
+                // C: status
                 const tdStatus = document.createElement('td');
                 const badge = document.createElement('span');
                 badge.className = 'status-badge';
                 badge.textContent = item.status || '借出中';
                 tdStatus.appendChild(badge);
 
+                // H: borrow_time
                 const tdTime = document.createElement('td');
                 tdTime.textContent = item.borrowTime || '無紀錄';
 
-                tr.append(tdId, tdBrand, tdName, tdUser, tdStatus, tdTime);
+                tr.append(tdId, tdName, tdBrand, tdUser, tdStatus, tdTime);
                 tbody.appendChild(tr);
             });
         }
@@ -222,8 +208,8 @@
 
             const filtered = currentBorrowedItems.filter(item => {
                 return (item.id && item.id.toLowerCase().includes(keyword)) ||
-                       (item.brand && item.brand.toLowerCase().includes(keyword)) ||
                        (item.name && item.name.toLowerCase().includes(keyword)) ||
+                       (item.brand && item.brand.toLowerCase().includes(keyword)) ||
                        (item.borrowerName && item.borrowerName.toLowerCase().includes(keyword)) ||
                        (item.borrowerId && item.borrowerId.toLowerCase().includes(keyword));
             });
@@ -269,6 +255,8 @@
                     msg.innerText = '網路或連線錯誤，無法載入清單。';
                 });
         }
+
+        window.addEventListener('DOMContentLoaded', fetchList);
     </script>
 </body>
 </html>
