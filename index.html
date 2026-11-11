@@ -1,0 +1,243 @@
+function doGet(e) {
+  var params = (e && e.parameter) ? e.parameter : {};
+  var page = (params.page || "").toLowerCase().trim();
+  var action = (params.action || "").toLowerCase().trim();
+
+  // ================= A. 網頁渲染路由 (若無指定 API action，呈現網頁) =================
+  if (!action && !params.id) {
+    if (page === "list") {
+      return HtmlService.createHtmlOutputFromFile("list")
+        .setTitle("已借出設備清單")
+        .addMetaTag("viewport", "width=device-width, initial-scale=1.0");
+    }
+    if (page === "scan") {
+      return HtmlService.createHtmlOutputFromFile("scan")
+        .setTitle("設備掃描借還")
+        .addMetaTag("viewport", "width=device-width, initial-scale=1.0");
+    }
+    return HtmlService.createHtmlOutputFromFile("index")
+      .setTitle("設備管理系統 - 登入")
+      .addMetaTag("viewport", "width=device-width, initial-scale=1.0");
+  }
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var userSheet = ss.getSheetByName("Users");
+  var eqSheet = ss.getSheetByName("Equipment_List");
+  var logSheet = ss.getSheetByName("Borrow_Logs");
+
+  // ================= 1. 登入驗證 (login) =================
+  if (action === "login") {
+    var checkId = params.user_id ? String(params.user_id).trim() : "";
+    if (!checkId) return createJsonResponse({ success: false, message: "請輸入學號或員工代號！" });
+    if (!userSheet) return createJsonResponse({ success: false, message: "找不到工作表「Users」" });
+
+    var uData = userSheet.getDataRange().getValues();
+    // Users 欄位：A=user_id, B=name, C=role, D=status
+    for (var u = 1; u < uData.length; u++) {
+      var uid = String(uData[u][0] !== undefined ? uData[u][0] : "").trim();
+      if (uid === checkId) {
+        var uName = String(uData[u][1] || checkId).trim();
+        var uRole = String(uData[u][2] || "學生").trim();
+        var uStatus = String(uData[u][3] || "").trim();
+
+        if (uStatus === "停權" || uStatus === "無效" || uStatus === "鎖定") {
+          return createJsonResponse({ success: false, message: "此帳號已被停權，無法借用設備！" });
+        }
+        return createJsonResponse({
+          success: true,
+          message: "登入成功",
+          user: { id: uid, name: uName, role: uRole }
+        });
+      }
+    }
+    return createJsonResponse({ success: false, message: "查無此學號/代號「" + checkId + "」" });
+  }
+
+  // ================= 2. 借出清單 (list_borrowed) =================
+  if (action === "list_borrowed") {
+    try {
+      if (!eqSheet) return createJsonResponse({ success: false, message: "找不到工作表「Equipment_List」" });
+
+      var data = eqSheet.getDataRange().getValues();
+      var borrowedList = [];
+
+      for (var i = 1; i < data.length; i++) {
+        // 嚴格綁定：E 欄 (陣列索引 4) 為狀態
+        var rawStatus = String(data[i][4] !== undefined ? data[i][4] : "").replace(/\s+/g, "");
+        var isBorrowed = (rawStatus === "借出中" || rawStatus === "已借出" || rawStatus === "借出");
+
+        if (isBorrowed) {
+          // H 欄 (陣列索引 7) 為借出時間
+          var rawDate = data[i][7];
+          var timeStr = "無紀錄";
+          if (rawDate instanceof Date && !isNaN(rawDate.getTime())) {
+            timeStr = Utilities.formatDate(rawDate, "Asia/Taipei", "yyyy-MM-dd HH:mm:ss");
+          } else if (rawDate) {
+            timeStr = String(rawDate).trim();
+          }
+
+          borrowedList.push({
+            id: String(data[i][0] !== undefined ? data[i][0] : "").trim(),           // A 欄：equipment_id
+            name: String(data[i][2] || "").trim(),                                   // C 欄：name
+            brand: String(data[i][3] || "").trim(),                                  // D 欄：brand
+            status: String(data[i][4] || "").trim(),                                 // E 欄：status
+            borrowerId: String(data[i][5] || "").trim(),                             // F 欄：borrower_id
+            borrowerName: String(data[i][6] || "").trim(),                           // G 欄：borrower_name
+            borrowTime: timeStr                                                      // H 欄：borrow_time
+          });
+        }
+      }
+      return createJsonResponse({ success: true, count: borrowedList.length, data: borrowedList });
+    } catch (err) {
+      return createJsonResponse({ success: false, message: "後端錯誤：" + err.toString() });
+    }
+  }
+
+  // ================= 3. 設備借還 (borrow / return / auto) =================
+  var equipmentId = params.id ? String(params.id).trim() : null;
+  var inputUserId = params.user_id ? String(params.user_id).trim() : "";
+  var mode = (action || "auto").toLowerCase().trim();
+
+  if (!equipmentId) return createJsonResponse({ success: false, message: "【操作失敗】未提供設備編號" });
+
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (err) {
+    return createJsonResponse({ success: false, message: "【系統繁忙】請稍候再試。" });
+  }
+
+  try {
+    if (!eqSheet) return createJsonResponse({ success: false, message: "找不到工作表「Equipment_List」" });
+
+    var eqData = eqSheet.getDataRange().getValues();
+    var timeStamp = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd HH:mm:ss");
+
+    for (var i = 1; i < eqData.length; i++) {
+      // A 欄 (索引 0)：equipment_id
+      var currentId = String(eqData[i][0] !== undefined ? eqData[i][0] : "").trim();
+
+      if (currentId === equipmentId) {
+        // 嚴格對齊截圖的實體欄位：
+        // C 欄 (索引 2) = name
+        // D 欄 (索引 3) = brand
+        // E 欄 (索引 4) = status
+        // F 欄 (索引 5) = borrower_id
+        // G 欄 (索引 6) = borrower_name
+        // H 欄 (索引 7) = borrow_time
+        var eqName = eqData[i][2] ? String(eqData[i][2]).trim() : "未命名設備";
+        var eqBrand = eqData[i][3] ? String(eqData[i][3]).trim() : "";
+        var fullName = (eqBrand ? eqBrand + " " : "") + eqName;
+        
+        var rawStatus = String(eqData[i][4] !== undefined ? eqData[i][4] : "").replace(/\s+/g, "");
+        var rowNumber = i + 1; // 試算表實際列號 (從 1 開始)
+
+        var isBorrowed = (rawStatus === "借出中" || rawStatus === "已借出" || rawStatus === "借出");
+        var isAvailable = (rawStatus === "可借用" || rawStatus === "可借" || rawStatus === "");
+
+        var targetAction = mode;
+        if (mode === "auto") {
+          targetAction = isAvailable ? "borrow" : (isBorrowed ? "return" : "");
+        }
+
+        // ---------- 執行借用 ----------
+        if (targetAction === "borrow") {
+          if (!isAvailable) {
+            return createJsonResponse({
+              success: false,
+              message: "【借用失敗】設備「" + fullName + "」狀態為「" + rawStatus + "」，非可借用狀態！"
+            });
+          }
+          if (!inputUserId) {
+            return createJsonResponse({ success: false, message: "【借用失敗】未附帶借用人身分，請重新登入！" });
+          }
+
+          var userName = getUserName(userSheet, inputUserId);
+
+          // 寫入 Equipment_List 實體欄位：
+          // 第 5 欄 (E: status) = 借出中
+          // 第 6 欄 (F: borrower_id) = inputUserId
+          // 第 7 欄 (G: borrower_name) = userName
+          // 第 8 欄 (H: borrow_time) = timeStamp
+          eqSheet.getRange(rowNumber, 5, 1, 4).setValues([["借出中", inputUserId, userName, timeStamp]]);
+
+          // 寫入 Borrow_Logs (A: log_id, B: equipment_id, C: name, D: user_id, E: user_name, F: borrow_time, G: return_time)
+          if (logSheet) {
+            var logId = "L" + new Date().getTime();
+            logSheet.appendRow([logId, equipmentId, fullName, inputUserId, userName, timeStamp, ""]);
+          }
+
+          return createJsonResponse({
+            success: true,
+            action: "borrow",
+            message: "【借用成功】\n設備：" + fullName + "\n借用人：" + userName + " (" + inputUserId + ")",
+            time: timeStamp
+          });
+        }
+
+        // ---------- 執行歸還 ----------
+        if (targetAction === "return") {
+          if (!isBorrowed) {
+            return createJsonResponse({
+              success: false,
+              message: "【歸還失敗】設備「" + fullName + "」目前為「" + rawStatus + "」，無需歸還。"
+            });
+          }
+
+          var prevBorrower = eqData[i][6] || eqData[i][5] || "借用人";
+
+          // 清空 Equipment_List 中的借用人與時間，狀態恢復「可借用」
+          // 第 5 欄 (E) 寫入 可借用，第 6~8 欄 (F, G, H) 清空
+          eqSheet.getRange(rowNumber, 5, 1, 4).setValues([["可借用", "", "", ""]]);
+
+          // 回填 Borrow_Logs 的 return_time (第 7 欄 G)
+          if (logSheet) {
+            var logData = logSheet.getDataRange().getValues();
+            for (var j = logData.length - 1; j >= 1; j--) {
+              if (String(logData[j][1]).trim() === equipmentId && String(logData[j][6]).trim() === "") {
+                logSheet.getRange(j + 1, 7).setValue(timeStamp);
+                break;
+              }
+            }
+          }
+
+          return createJsonResponse({
+            success: true,
+            action: "return",
+            message: "【歸還成功】\n設備：" + fullName + "\n原借用人：" + prevBorrower + " 已完成歸還",
+            time: timeStamp
+          });
+        }
+
+        return createJsonResponse({
+          success: false,
+          message: "【操作失敗】設備狀態異常：「" + rawStatus + "」"
+        });
+      }
+    }
+
+    return createJsonResponse({
+      success: false,
+      message: "【查詢失敗】在「Equipment_List」A 欄找不到設備編號：「" + equipmentId + "」"
+    });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function getUserName(userSheet, userId) {
+  if (!userSheet) return userId;
+  var users = userSheet.getDataRange().getValues();
+  for (var k = 1; k < users.length; k++) {
+    var uid = String(users[k][0] !== undefined ? users[k][0] : "").trim();
+    if (uid === userId) {
+      return String(users[k][1] || userId).trim();
+    }
+  }
+  return userId;
+}
+
+function createJsonResponse(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
