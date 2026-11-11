@@ -13,12 +13,7 @@
             margin: 0;
             color: #333;
         }
-        h2 { 
-            text-align: center; 
-            margin: 10px 0 20px; 
-            font-weight: 700; 
-        }
-
+        h2 { text-align: center; margin: 10px 0 20px; font-weight: 700; }
         .btn-group {
             display: flex;
             justify-content: center;
@@ -88,11 +83,7 @@
             border-bottom: 1px solid #eef0f2;
             font-size: 14px;
         }
-        th {
-            background-color: #007bff;
-            color: white;
-            white-space: nowrap;
-        }
+        th { background-color: #007bff; color: white; white-space: nowrap; }
         th:first-child { border-top-left-radius: 6px; }
         th:last-child { border-top-right-radius: 6px; }
         tr:hover { background-color: #f8f9fa; }
@@ -119,12 +110,10 @@
     <h2>📋 目前已借出設備清單</h2>
 
     <div class="btn-group">
-        <!-- 依登入狀態跳轉回掃描頁或登入頁 -->
-        <a id="btn-back" href="scan.html" class="action-btn btn-back">⬅ 回到掃描頁面</a>
+        <a id="btn-back" href="javascript:void(0)" onclick="goBack()" class="action-btn btn-back">⬅ 回到掃描頁面</a>
         <button class="action-btn btn-refresh" onclick="fetchList()">🔄 重新整理</button>
     </div>
 
-    <!-- 頂部資訊與過濾欄 -->
     <div class="toolbar" id="toolbar" style="display: none;">
         <span class="count-badge" id="total-count">已借出：0 件</span>
         <input type="text" id="filter-input" class="search-input" placeholder="🔍 搜尋編號、廠牌、品名或借用人..." oninput="applyFilter()">
@@ -150,23 +139,29 @@
 
     <script>
         // ★★★ 請替換成你的 GAS Web App URL ★★★
-        const API_URL = "https://script.google.com/macros/s/AKfycbzmBXl82KlfLR3GBtRhKv8GQ8b7BEOcDs-C1ywubNC5yYIlQcb0UYOFg2fEmSBxZt4/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbyOuLEu1NYYOWLDNXlbkTXJgTXtUQeQud1gOWAcF1YLsJSaWPh-CzbeeM4PYOo5KnZN/exec";
 
         let currentBorrowedItems = [];
 
-        // 初始化返回按鈕路徑
         window.addEventListener('DOMContentLoaded', () => {
             const savedUser = localStorage.getItem("EQUIP_USER");
             const backBtn = document.getElementById('btn-back');
             if (savedUser) {
-                backBtn.href = "scan.html";
                 backBtn.innerText = "⬅ 回到掃描頁面";
             } else {
-                backBtn.href = "index.html";
                 backBtn.innerText = "⬅ 回到登入首頁";
             }
             fetchList();
         });
+
+        function goBack() {
+            const savedUser = localStorage.getItem("EQUIP_USER");
+            if (savedUser) {
+                window.location.href = "scan.html";
+            } else {
+                window.location.href = "index.html";
+            }
+        }
 
         function renderTable(items) {
             const tbody = document.getElementById('list-body');
@@ -188,19 +183,15 @@
             items.forEach(item => {
                 const tr = document.createElement('tr');
 
-                // A: equipment_id
                 const tdId = document.createElement('td');
                 tdId.textContent = item.id || '-';
 
-                // D: brand
                 const tdBrand = document.createElement('td');
                 tdBrand.textContent = item.brand || '-';
 
-                // C: name
                 const tdName = document.createElement('td');
                 tdName.textContent = item.name || '-';
 
-                // F: borrower_id + G: borrower_name
                 const tdUser = document.createElement('td');
                 if (item.borrowerName && item.borrowerId) {
                     tdUser.textContent = `${item.borrowerName} (${item.borrowerId})`;
@@ -208,14 +199,12 @@
                     tdUser.textContent = item.borrowerId || '-';
                 }
 
-                // E: status
                 const tdStatus = document.createElement('td');
                 const badge = document.createElement('span');
                 badge.className = 'status-badge';
                 badge.textContent = item.status || '借出中';
                 tdStatus.appendChild(badge);
 
-                // H: borrow_time
                 const tdTime = document.createElement('td');
                 tdTime.textContent = item.borrowTime || '無紀錄';
 
@@ -277,7 +266,6 @@
                     }
                 })
                 .catch(err => {
-                    console.error("Fetch Error:", err);
                     msg.innerText = '網路或連線錯誤，無法載入清單。';
                 });
         }
