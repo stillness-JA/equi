@@ -3,275 +3,155 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>設備掃描借還系統</title>
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <title>設備管理系統 - 登入</title>
     <style>
         * { box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            text-align: center;
-            padding: 20px 15px;
-            background-color: #f8f9fa;
+            background-color: #f4f6f9;
             margin: 0;
-            color: #333;
-        }
-        h2 { margin: 10px 0 20px; }
-
-        .mode-container {
-            margin-bottom: 15px;
+            padding: 20px;
             display: flex;
             justify-content: center;
-            gap: 15px;
+            align-items: center;
+            min-height: 90vh;
         }
-        .mode-btn {
-            flex: 1;
-            max-width: 170px;
-            padding: 12px 18px;
-            font-size: 16px;
-            border: 2px solid #007bff;
-            border-radius: 25px;
-            background-color: white;
-            color: #007bff;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.2s ease;
-        }
-        .mode-btn.active-borrow {
-            background-color: #007bff;
-            color: white;
-            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
-        }
-        .mode-btn.active-return {
-            background-color: #28a745;
-            border-color: #28a745;
-            color: white;
-            box-shadow: 0 4px 10px rgba(40, 167, 69, 0.3);
-        }
-
-        .user-input-box {
-            margin-bottom: 15px;
-        }
-        .user-input {
+        .login-card {
+            background: white;
+            padding: 30px 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
             width: 100%;
-            max-width: 360px;
-            padding: 10px 16px;
-            font-size: 15px;
-            border: 1px solid #ced4da;
-            border-radius: 20px;
+            max-width: 380px;
             text-align: center;
-            outline: none;
-            background: #fff;
         }
-        .user-input:focus {
+        h2 { margin-bottom: 8px; color: #333; }
+        p { color: #666; font-size: 14px; margin-bottom: 25px; }
+
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .input-group label {
+            display: block;
+            font-size: 14px;
+            color: #495057;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+        .input-box {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .input-box:focus {
             border-color: #007bff;
             box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
         }
 
-        .query-link {
-            display: inline-block;
-            margin-bottom: 15px;
-            padding: 8px 18px;
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-submit:hover { background-color: #0056b3; }
+        .btn-submit:disabled { background-color: #adb5bd; cursor: not-allowed; }
+
+        #login-msg {
+            margin-top: 15px;
             font-size: 14px;
-            border: 1px solid #ced4da;
-            border-radius: 20px;
-            background-color: #ffffff;
-            color: #495057;
-            text-decoration: none;
-            transition: all 0.2s ease;
+            min-height: 20px;
+            font-weight: 500;
         }
-        .query-link:hover {
-            background-color: #e9ecef;
-        }
-
-        #camera-select {
-            margin-bottom: 15px;
-            padding: 10px;
-            font-size: 15px;
-            border-radius: 8px;
-            border: 1px solid #ced4da;
-            width: 100%;
-            max-width: 420px;
-            background-color: white;
-        }
-
-        #reader {
-            width: 100%;
-            max-width: 420px;
-            margin: 0 auto;
-            background: #000;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-            overflow: hidden;
-        }
-
-        #result-box {
-            margin: 20px auto 0;
-            max-width: 420px;
-            padding: 14px 16px;
-            border-radius: 8px;
-            background: #ffffff;
-            border: 1px solid #e9ecef;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-            font-size: 15px;
-            line-height: 1.5;
-            min-height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            white-space: pre-wrap;
-            font-weight: 600;
-            color: #495057;
-        }
-        .status-idle { color: #6c757d; }
-        .status-loading { color: #007bff; }
-        .status-success { color: #1e7e34; background-color: #d4edda !important; border-color: #c3e6cb !important; }
-        .status-error { color: #bd2130; background-color: #f8d7da !important; border-color: #f5c6cb !important; }
+        .msg-error { color: #dc3545; }
+        .msg-loading { color: #007bff; }
     </style>
 </head>
 <body>
-    <h2>📷 設備掃描借還系統</h2>
 
-    <!-- 借用 / 歸還 模式切換 -->
-    <div class="mode-container">
-        <button id="btn-borrow" class="mode-btn active-borrow" onclick="setMode('borrow')">📤 借用模式</button>
-        <button id="btn-return" class="mode-btn" onclick="setMode('return')">📥 歸還模式</button>
+<div class="login-card">
+    <h2>🏫 設備借還系統</h2>
+    <p>請先驗證學生或教職員身分</p>
+
+    <div class="input-group">
+        <label for="user-id">學號 / 員工編號</label>
+        <input type="text" id="user-id" class="input-box" placeholder="例如：S112001" autofocus>
     </div>
 
-    <!-- 借用人輸入框 (歸還模式時非必填) -->
-    <div class="user-input-box" id="user-container">
-        <input type="text" id="user-id-input" class="user-input" placeholder="請輸入借用人學號 / 教職員代號">
+    <button id="btn-login" class="btn-submit" onclick="handleLogin()">登入身分</button>
+    <div id="login-msg"></div>
+
+    <div style="margin-top: 25px; border-top: 1px solid #eee; padding-top: 15px;">
+        <a href="list.html" style="color: #6c757d; font-size: 13px; text-decoration: none;">📋 檢視目前借出清單</a>
     </div>
+</div>
 
-    <div>
-        <a href="list.html" class="query-link">📋 查看目前借出清單</a>
-    </div>
+<script>
+    // ★★★ 請替換成你的 GAS Web App URL ★★★
+    const API_URL = "https://script.google.com/macros/s/AKfycbxieScxTl8KtSVD6J7z2CbffOJMDx31uw0FKptCKUzOU3GrEnZMO-InFr9G9r6ksLSd/exec";
 
-    <select id="camera-select"></select>
-    <div id="reader"></div>
-    <div id="result-box" class="status-idle">相機啟動中，請稍候...</div>
+    // 若已經登入過，直接導向掃描頁面
+    window.addEventListener('DOMContentLoaded', () => {
+        const savedUser = localStorage.getItem("EQUIP_USER");
+        if (savedUser) {
+            window.location.href = "scan.html";
+        }
+    });
 
-    <script>
-        // ★★★ 請替換成你的 GAS Web App URL ★★★
-        const API_URL = "https://script.google.com/macros/s/AKfycbxYU-m7BPT4u763lUF-L7Xgdn0ZPpjaCvMoB7RXRb9UMxqldIxAhlR9An0B4-HHl8J6/exec";
+    document.getElementById('user-id').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') handleLogin();
+    });
 
-        let isProcessing = false;
-        let currentMode = "borrow";
-        const resultBox = document.getElementById('result-box');
-        const cameraSelect = document.getElementById('camera-select');
-        const userIdInput = document.getElementById('user-id-input');
-        const html5QrCode = new Html5Qrcode("reader");
-        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+    function handleLogin() {
+        const userIdInput = document.getElementById('user-id');
+        const userId = userIdInput.value.trim();
+        const msgDiv = document.getElementById('login-msg');
+        const btn = document.getElementById('btn-login');
 
-        function setMode(mode) {
-            currentMode = mode;
-            const btnBorrow = document.getElementById('btn-borrow');
-            const btnReturn = document.getElementById('btn-return');
-
-            if (mode === 'borrow') {
-                btnBorrow.className = "mode-btn active-borrow";
-                btnReturn.className = "mode-btn";
-                userIdInput.placeholder = "請輸入借用人學號 / 教職員代號";
-            } else {
-                btnBorrow.className = "mode-btn";
-                btnReturn.className = "mode-btn active-return";
-                userIdInput.placeholder = "歸還時無需填寫學號 (直接掃描)";
-            }
+        if (!userId) {
+            msgDiv.className = "msg-error";
+            msgDiv.innerText = "請輸入學號或員工編號！";
+            return;
         }
 
-        function setResult(message, statusClass) {
-            resultBox.className = statusClass;
-            resultBox.innerText = message;
-        }
+        btn.disabled = true;
+        msgDiv.className = "msg-loading";
+        msgDiv.innerText = "驗證身分中...";
 
-        function onScanSuccess(decodedText) {
-            if (isProcessing) return;
-
-            const userId = userIdInput.value.trim();
-            if (currentMode === "borrow" && !userId) {
-                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-                setResult("【請注意】借用模式下，請先於上方輸入學號/代號！", "status-error");
-                return;
-            }
-
-            isProcessing = true;
-            if (navigator.vibrate) navigator.vibrate(80);
-
-            // 處理 QR Code 內容格式相容性
-            let parsedId = decodedText;
-            if (parsedId.includes("text=")) {
-                parsedId = parsedId.split("text=")[1].split("&")[0];
-            } else if (parsedId.includes("id=")) {
-                parsedId = parsedId.split("id=")[1].split("&")[0];
-            }
-            parsedId = parsedId.trim();
-
-            const actionLabel = currentMode === "borrow" ? "借用" : "歸還";
-            setResult(`讀取設備編號：${parsedId}\n正在處理【${actionLabel}】...`, "status-loading");
-
-            const requestUrl = `${API_URL}?id=${encodeURIComponent(parsedId)}&action=${currentMode}&user_id=${encodeURIComponent(userId)}`;
-
-            fetch(requestUrl)
-                .then(res => res.json())
-                .then(data => {
-                    setResult(data.message, data.success ? "status-success" : "status-error");
-
+        fetch(`${API_URL}?action=login&user_id=${encodeURIComponent(userId)}`)
+            .then(res => res.json())
+            .then(res => {
+                if (res.success && res.user) {
+                    // 儲存至 localStorage
+                    localStorage.setItem("EQUIP_USER", JSON.stringify(res.user));
+                    msgDiv.style.color = "green";
+                    msgDiv.innerText = `登入成功！歡迎 ${res.user.name}，正在轉跳...`;
                     setTimeout(() => {
-                        isProcessing = false;
-                        setResult("請對準下一個 QR Code 進行掃描...", "status-idle");
-                    }, 3500);
-                })
-                .catch(err => {
-                    console.error("Fetch error:", err);
-                    setResult("連線失敗，請檢查網路或 Apps Script 權限！", "status-error");
-                    setTimeout(() => {
-                        isProcessing = false;
-                        setResult("請對準 QR Code 進行掃描...", "status-idle");
-                    }, 3500);
-                });
-        }
-
-        function startCamera(cameraId) {
-            html5QrCode.start(cameraId, config, onScanSuccess)
-                .then(() => {
-                    setResult("請對準 QR Code 進行掃描...", "status-idle");
-                })
-                .catch(err => {
-                    console.error(err);
-                    setResult("相機啟動失敗，請確認已授權攝影機存取權限。", "status-error");
-                });
-        }
-
-        Html5Qrcode.getCameras().then(devices => {
-            if (devices && devices.length) {
-                let defaultCameraId = devices[0].id;
-                cameraSelect.innerHTML = "";
-
-                devices.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.id;
-                    option.text = device.label || `相機 ${index + 1}`;
-                    cameraSelect.appendChild(option);
-
-                    if (/back|rear|environment/i.test(device.label)) {
-                        defaultCameraId = device.id;
-                    }
-                });
-
-                cameraSelect.value = defaultCameraId;
-                startCamera(defaultCameraId);
-
-                cameraSelect.addEventListener('change', () => {
-                    html5QrCode.stop().then(() => {
-                        startCamera(cameraSelect.value);
-                    }).catch(err => console.error("相機切換失敗:", err));
-                });
-            } else {
-                setResult("未偵測到相機裝置。", "status-error");
-            }
-        }).catch(err => {
-            console.error(err);
-            setResult("無法讀取相機，請使用 HTTPS 連線並開放權限。", "status-error");
-        });
-    </script>
+                        window.location.href = "scan.html";
+                    }, 800);
+                } else {
+                    btn.disabled = false;
+                    msgDiv.className = "msg-error";
+                    msgDiv.innerText = res.message || "登入失敗";
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                msgDiv.className = "msg-error";
+                msgDiv.innerText = "連線失敗，請檢查網路或系統設定。";
+            });
+    }
+</script>
 </body>
 </html>
