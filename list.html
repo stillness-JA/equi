@@ -13,7 +13,11 @@
             margin: 0;
             color: #333;
         }
-        h2 { text-align: center; margin: 10px 0 20px; font-weight: 700; }
+        h2 { 
+            text-align: center; 
+            margin: 10px 0 20px; 
+            font-weight: 700; 
+        }
 
         .btn-group {
             display: flex;
@@ -34,8 +38,8 @@
             border: none;
             transition: all 0.2s ease;
         }
-        .btn-home { background-color: #6c757d; color: white; }
-        .btn-home:hover { background-color: #5a6268; }
+        .btn-back { background-color: #6c757d; color: white; }
+        .btn-back:hover { background-color: #5a6268; }
         .btn-refresh { background-color: #007bff; color: white; }
         .btn-refresh:hover { background-color: #0056b3; }
 
@@ -115,10 +119,12 @@
     <h2>📋 目前已借出設備清單</h2>
 
     <div class="btn-group">
-        <a href="index.html" class="action-btn btn-home">⬅ 回到掃描頁面</a>
+        <!-- 依登入狀態跳轉回掃描頁或登入頁 -->
+        <a id="btn-back" href="scan.html" class="action-btn btn-back">⬅ 回到掃描頁面</a>
         <button class="action-btn btn-refresh" onclick="fetchList()">🔄 重新整理</button>
     </div>
 
+    <!-- 頂部資訊與過濾欄 -->
     <div class="toolbar" id="toolbar" style="display: none;">
         <span class="count-badge" id="total-count">已借出：0 件</span>
         <input type="text" id="filter-input" class="search-input" placeholder="🔍 搜尋編號、廠牌、品名或借用人..." oninput="applyFilter()">
@@ -148,6 +154,20 @@
 
         let currentBorrowedItems = [];
 
+        // 初始化返回按鈕路徑
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedUser = localStorage.getItem("EQUIP_USER");
+            const backBtn = document.getElementById('btn-back');
+            if (savedUser) {
+                backBtn.href = "scan.html";
+                backBtn.innerText = "⬅ 回到掃描頁面";
+            } else {
+                backBtn.href = "index.html";
+                backBtn.innerText = "⬅ 回到登入首頁";
+            }
+            fetchList();
+        });
+
         function renderTable(items) {
             const tbody = document.getElementById('list-body');
             tbody.innerHTML = '';
@@ -168,15 +188,19 @@
             items.forEach(item => {
                 const tr = document.createElement('tr');
 
+                // A: equipment_id
                 const tdId = document.createElement('td');
                 tdId.textContent = item.id || '-';
 
+                // D: brand
                 const tdBrand = document.createElement('td');
                 tdBrand.textContent = item.brand || '-';
 
+                // C: name
                 const tdName = document.createElement('td');
                 tdName.textContent = item.name || '-';
 
+                // F: borrower_id + G: borrower_name
                 const tdUser = document.createElement('td');
                 if (item.borrowerName && item.borrowerId) {
                     tdUser.textContent = `${item.borrowerName} (${item.borrowerId})`;
@@ -184,12 +208,14 @@
                     tdUser.textContent = item.borrowerId || '-';
                 }
 
+                // E: status
                 const tdStatus = document.createElement('td');
                 const badge = document.createElement('span');
                 badge.className = 'status-badge';
                 badge.textContent = item.status || '借出中';
                 tdStatus.appendChild(badge);
 
+                // H: borrow_time
                 const tdTime = document.createElement('td');
                 tdTime.textContent = item.borrowTime || '無紀錄';
 
@@ -255,8 +281,6 @@
                     msg.innerText = '網路或連線錯誤，無法載入清單。';
                 });
         }
-
-        window.addEventListener('DOMContentLoaded', fetchList);
     </script>
 </body>
 </html>
