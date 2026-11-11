@@ -15,7 +15,6 @@
             margin: 0;
             color: #333;
         }
-        /* 頂部身分列 */
         .user-bar {
             max-width: 420px;
             margin: 0 auto 15px auto;
@@ -39,7 +38,6 @@
             font-weight: 600;
         }
         .btn-logout:hover { background: #dee2e6; }
-
         h2 { margin: 5px 0 15px; }
 
         .mode-container {
@@ -132,7 +130,6 @@
 </head>
 <body>
 
-    <!-- 身分顯示與登出列 -->
     <div class="user-bar">
         <span id="user-display">👤 載入身分中...</span>
         <button class="btn-logout" onclick="logout()">登出</button>
@@ -140,7 +137,6 @@
 
     <h2>📷 設備掃描借還</h2>
 
-    <!-- 借用 / 歸還 切換 -->
     <div class="mode-container">
         <button id="btn-borrow" class="mode-btn active-borrow" onclick="setMode('borrow')">📤 借用模式</button>
         <button id="btn-return" class="mode-btn" onclick="setMode('return')">📥 歸還模式</button>
@@ -166,11 +162,10 @@
         const html5QrCode = new Html5Qrcode("reader");
         const config = { fps: 10, qrbox: { width: 250, height: 250 } };
 
-        // 檢查登入狀態
         window.addEventListener('DOMContentLoaded', () => {
             const savedUser = localStorage.getItem("EQUIP_USER");
             if (!savedUser) {
-                alert("尚未登入，請先輸入身分學號！");
+                alert("尚未登入，請先輸入身分！");
                 window.location.href = "index.html";
                 return;
             }
@@ -219,7 +214,6 @@
             const actionLabel = currentMode === "borrow" ? "借用" : "歸還";
             setResult(`讀取設備編號：${parsedId}\n正在處理【${actionLabel}】...`, "status-loading");
 
-            // 帶入登入者 user_id
             const requestUrl = `${API_URL}?id=${encodeURIComponent(parsedId)}&action=${currentMode}&user_id=${encodeURIComponent(currentUser.id)}`;
 
             fetch(requestUrl)
@@ -232,7 +226,6 @@
                     }, 3500);
                 })
                 .catch(err => {
-                    console.error("Fetch error:", err);
                     setResult("連線失敗，請檢查網路或 Apps Script 權限！", "status-error");
                     setTimeout(() => {
                         isProcessing = false;
@@ -247,7 +240,6 @@
                     setResult("請對準 QR Code 進行掃描...", "status-idle");
                 })
                 .catch(err => {
-                    console.error(err);
                     setResult("相機啟動失敗，請確認已授權攝影機權限。", "status-error");
                 });
         }
@@ -274,14 +266,13 @@
                 cameraSelect.addEventListener('change', () => {
                     html5QrCode.stop().then(() => {
                         startCamera(cameraSelect.value);
-                    }).catch(err => console.error("相機切換失敗:", err));
+                    });
                 });
             } else {
                 setResult("未偵測到可用相機裝置。", "status-error");
             }
         }).catch(err => {
-            console.error(err);
-            setResult("無法讀取相機，請使用 HTTPS 連線並開放相機權限。", "status-error");
+            setResult("無法讀取相機，請使用 HTTPS 連線並開放權限。", "status-error");
         });
     </script>
 </body>
