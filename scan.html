@@ -25,13 +25,51 @@
             padding: 8px 14px;
             border-radius: 20px;
             box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
+            gap: 6px;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px;
+            text-align: left;
+        }
+        .role-tag {
+            background: #007bff;
+            color: white;
+            font-size: 11px;
+            padding: 2px 7px;
+            border-radius: 10px;
+        }
+        .role-tag.admin { background: #dc3545; }
+        .right-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .timer-tag {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+            font-size: 12px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-variant-numeric: tabular-nums;
+            transition: all 0.2s;
+        }
+        .timer-tag.warning {
+            background: #f8d7da;
+            color: #721c24;
+            border-color: #f5c6cb;
+            font-weight: 700;
         }
         .btn-logout {
             background: #e9ecef;
             border: none;
-            padding: 5px 12px;
+            padding: 5px 11px;
             border-radius: 12px;
             cursor: pointer;
             font-size: 12px;
@@ -75,14 +113,17 @@
         .query-link {
             display: inline-block;
             margin-bottom: 12px;
-            padding: 6px 16px;
+            padding: 7px 18px;
             font-size: 13px;
+            font-weight: 600;
             border: 1px solid #ced4da;
             border-radius: 20px;
             background-color: #ffffff;
-            color: #495057;
+            color: #333;
             text-decoration: none;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
+        .query-link:hover { background-color: #f1f3f5; }
 
         #camera-select {
             margin-bottom: 12px;
@@ -132,19 +173,22 @@
 <body>
 
     <div class="user-bar">
-        <span id="user-display">👤 載入身分中...</span>
-        <button class="btn-logout" onclick="logout()">登出</button>
+        <div class="user-info" id="user-display">👤 載入身分中...</div>
+        <div class="right-controls">
+            <span id="idle-timer" class="timer-tag" title="閒置 10 秒將自動登出">⏳ 10s</span>
+            <button type="button" class="btn-logout" onclick="logout()">登出</button>
+        </div>
     </div>
 
     <h2>📷 設備掃描借還</h2>
 
     <div class="mode-container">
-        <button id="btn-borrow" class="mode-btn active-borrow" onclick="setMode('borrow')">📤 借用模式</button>
-        <button id="btn-return" class="mode-btn" onclick="setMode('return')">📥 歸還模式</button>
+        <button type="button" id="btn-borrow" class="mode-btn active-borrow" onclick="setMode('borrow')">📤 借用模式</button>
+        <button type="button" id="btn-return" class="mode-btn" onclick="setMode('return')">📥 歸還模式</button>
     </div>
 
     <div>
-        <a href="list.html" class="query-link">📋 查看目前借出清單</a>
+        <a href="list.html" id="records-link" class="query-link">📋 查看借還紀錄</a>
     </div>
 
     <select id="camera-select"></select>
@@ -152,16 +196,51 @@
     <div id="result-box" class="status-idle">相機啟動中，請稍候...</div>
 
     <script>
-        // ★★★ 請確認是你的 GAS Web App URL ★★★
-        const API_URL = "https://script.google.com/macros/s/AKfycbzmBXl82KlfLR3GBtRhKv8GQ8b7BEOcDs-C1ywubNC5yYIlQcb0UYOFg2fEmSBxZt4/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbzkyhOuqf9guo10dAMUtgTUFRvRhQ1PMvTVBwvDMMEE_xNr5MUSLPbzdG--RPVicFt-/exec";
 
         let currentUser = null;
         let isProcessing = false;
+        let isRequestingApi = false;
         let currentMode = "borrow";
+        let idleSeconds = 10;
+
         const resultBox = document.getElementById('result-box');
         const cameraSelect = document.getElementById('camera-select');
         const html5QrCode = new Html5Qrcode("reader");
         const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+        function resetIdleTimer() {
+            idleSeconds = 10;
+            const timerEl = document.getElementById('idle-timer');
+            if (timerEl) {
+                timerEl.innerText = `⏳ ${idleSeconds}s`;
+                timerEl.classList.remove('warning');
+            }
+        }
+
+        // 監聽使用者互動以重置 10 秒倒數
+        ['click', 'touchstart', 'keypress', 'scroll'].forEach(evt => {
+            window.addEventListener(evt, resetIdleTimer, { passive: true });
+        });
+
+        // 每秒檢查是否閒置超過 10 秒
+        setInterval(() => {
+            if (isRequestingApi) {
+                resetIdleTimer();
+                return;
+            }
+            idleSeconds--;
+            const timerEl = document.getElementById('idle-timer');
+            if (timerEl) {
+                timerEl.innerText = `⏳ ${Math.max(0, idleSeconds)}s`;
+                if (idleSeconds <= 3) {
+                    timerEl.classList.add('warning');
+                }
+            }
+            if (idleSeconds <= 0) {
+                logout();
+            }
+        }, 1000);
 
         window.addEventListener('DOMContentLoaded', () => {
             const savedUser = localStorage.getItem("EQUIP_USER");
@@ -171,7 +250,16 @@
                 return;
             }
             currentUser = JSON.parse(savedUser);
-            document.getElementById('user-display').innerText = `👤 ${currentUser.name} (${currentUser.id})`;
+            const roleLower = (currentUser.role || "").toLowerCase().trim();
+            const isAdmin = (roleLower === "admin" || roleLower === "管理者");
+
+            const userDisplay = document.getElementById('user-display');
+            userDisplay.innerHTML = `<span>👤 ${currentUser.name} (${currentUser.id})</span> <span class="role-tag ${isAdmin ? 'admin' : ''}">${isAdmin ? '管理者' : '一般使用者'}</span>`;
+
+            const recordsLink = document.getElementById('records-link');
+            recordsLink.innerText = isAdmin ? "📊 管理者總覽與借還紀錄" : "📋 我的借用與歸還紀錄";
+
+            resetIdleTimer();
         });
 
         function logout() {
@@ -180,6 +268,7 @@
         }
 
         function setMode(mode) {
+            resetIdleTimer();
             currentMode = mode;
             const btnBorrow = document.getElementById('btn-borrow');
             const btnReturn = document.getElementById('btn-return');
@@ -201,6 +290,8 @@
         function onScanSuccess(decodedText) {
             if (isProcessing) return;
             isProcessing = true;
+            isRequestingApi = true;
+            resetIdleTimer();
 
             if (navigator.vibrate) navigator.vibrate(80);
 
@@ -220,6 +311,8 @@
             fetch(requestUrl)
                 .then(res => res.json())
                 .then(data => {
+                    isRequestingApi = false;
+                    resetIdleTimer();
                     setResult(data.message, data.success ? "status-success" : "status-error");
                     setTimeout(() => {
                         isProcessing = false;
@@ -227,6 +320,8 @@
                     }, 3500);
                 })
                 .catch(err => {
+                    isRequestingApi = false;
+                    resetIdleTimer();
                     setResult("連線失敗，請檢查網路或 Apps Script 權限！", "status-error");
                     setTimeout(() => {
                         isProcessing = false;
@@ -265,6 +360,7 @@
                 startCamera(defaultCameraId);
 
                 cameraSelect.addEventListener('change', () => {
+                    resetIdleTimer();
                     html5QrCode.stop().then(() => {
                         startCamera(cameraSelect.value);
                     });
